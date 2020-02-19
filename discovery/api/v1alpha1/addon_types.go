@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -25,9 +26,25 @@ type AddonSpec struct{}
 
 // AddonStatus describes the observed state of an addon and its components.
 type AddonStatus struct {
+	// Metadata extracts information about the targeted objects based on labels.
+	// +optional
+	Metadata []Metadata `json:"metadata,omitempty"`
+
 	// Components describes resources that compose the addon.
 	// +optional
 	Components *Components `json:"components,omitempty"`
+}
+
+// Metadata describes the content extracted from a target object.
+type Metadata struct {
+	// Type is a reverse-dns identifier for the type of information extracted.
+	Type string `json:"type"`
+
+	// Ref is a short reference to the object from which this data was extracted.
+	Ref string `json:"ref"`
+
+	// Content is the information that has been extracted from the targeted object.
+	Content json.RawMessage `json:"content"`
 }
 
 // ConditionType codifies a condition's type.

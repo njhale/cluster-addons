@@ -2,6 +2,7 @@ package decorators
 
 import (
 	"fmt"
+	"sigs.k8s.io/addon-operators/discovery/lib/builder"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -151,7 +152,8 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 		return err
 	}
 
-	var refs []discoveryv1alpha1.RichReference
+	refs := make([]discoveryv1alpha1.RichReference, 0)
+	metas := make([]discoveryv1alpha1.Metadata, 0)
 	for _, obj := range components {
 		// Unpack nested components
 		if nested, err := meta.ExtractList(obj); err == nil {
@@ -177,6 +179,12 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 			return err
 		}
 		refs = append(refs, *ref)
+
+		ms, err := component.ExtractMetadata()
+		if err != nil {
+			return err
+		}
+		metas = append(metas, ms...)
 	}
 
 	if a.Status.Components == nil {
@@ -186,6 +194,7 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 	}
 
 	a.Status.Components.Refs = append(a.Status.Components.Refs, refs...)
+	a.Status.Metadata = append(a.Status.Metadata, metas...)
 
 	return nil
 }
@@ -264,6 +273,47 @@ func (c *Component) Reference() (ref *discoveryv1alpha1.RichReference, err error
 
 	err = decoder.Decode(out)
 
+	return
+}
+
+func (c *Component) ExtractMetadata() (metas []discoveryv1alpha1.Metadata, err error) {
+	m, err := meta.Accessor(c)
+	if err != nil {
+		return
+	}
+	metas = make([]discoveryv1alpha1.Metadata, 0)
+	annotations := m.GetAnnotations()
+	if len(annotations) == 0 {
+		return
+	}
+
+	marshalled, err := c.Unstructured.MarshalJSON()
+	if err != nil {
+		return
+	}
+	for k, v := range annotations {
+		if !strings.HasPrefix(k, ComponentLabelKeyPrefix) {
+			continue
+		}
+
+		// todo: aggregate, ignore failures
+		// todo: don't convert to string, use gjson byte interface
+		objs, oerr := builder.BuildObject(v, string(marshalled))
+		if oerr != nil {
+			err = oerr
+			return
+		}
+		for _, o := range objs {
+			if o == "" {
+				continue
+			}
+			metas = append(metas, discoveryv1alpha1.Metadata{
+				Type:    strings.TrimPrefix(k, ComponentLabelKeyPrefix),
+				Ref:     m.GetSelfLink(),
+				Content: []byte(o),
+			})
+		}
+	}
 	return
 }
 
