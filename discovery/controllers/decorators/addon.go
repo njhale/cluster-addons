@@ -1,7 +1,9 @@
 package decorators
 
 import (
+	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/addon-operators/discovery/lib/builder"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -138,6 +140,7 @@ func (a *Addon) ResetComponents() error {
 	a.Status.Components = &discoveryv1alpha1.Components{
 		LabelSelector: labelSelector,
 	}
+	a.Status.Metadata = make([]discoveryv1alpha1.Metadata, 0)
 
 	return nil
 }
@@ -151,7 +154,8 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 		return err
 	}
 
-	var refs []discoveryv1alpha1.RichReference
+	refs := make([]discoveryv1alpha1.RichReference, 0)
+	metas := make([]discoveryv1alpha1.Metadata, 0)
 	for _, obj := range components {
 		// Unpack nested components
 		if nested, err := meta.ExtractList(obj); err == nil {
@@ -177,6 +181,12 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 			return err
 		}
 		refs = append(refs, *ref)
+
+		ms, err := component.ExtractMetadata(ref)
+		if err != nil {
+			return err
+		}
+		metas = append(metas, ms...)
 	}
 
 	if a.Status.Components == nil {
@@ -186,6 +196,7 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 	}
 
 	a.Status.Components.Refs = append(a.Status.Components.Refs, refs...)
+	a.Status.Metadata = append(a.Status.Metadata, metas...)
 
 	return nil
 }
@@ -264,6 +275,50 @@ func (c *Component) Reference() (ref *discoveryv1alpha1.RichReference, err error
 
 	err = decoder.Decode(out)
 
+	return
+}
+
+func (c *Component) ExtractMetadata(ref *discoveryv1alpha1.RichReference) (metas []discoveryv1alpha1.Metadata, err error) {
+	m, err := meta.Accessor(c)
+	if err != nil {
+		return
+	}
+	metas = make([]discoveryv1alpha1.Metadata, 0)
+	annotations := m.GetAnnotations()
+	if len(annotations) == 0 {
+		return
+	}
+
+	marshalled, err := c.Unstructured.MarshalJSON()
+	if err != nil {
+		return
+	}
+	for k, v := range annotations {
+		if !strings.HasPrefix(k, ComponentLabelKeyPrefix) {
+			continue
+		}
+
+		// todo: don't convert to string, use gjson byte interface
+		objs, oerr := builder.BuildObject(strings.TrimPrefix(k, ComponentLabelKeyPrefix), v, string(marshalled))
+		if oerr != nil {
+			err = oerr
+			return
+		}
+		for _, o := range objs {
+			if o == "" {
+				continue
+			}
+			var u map[string]interface{}
+			if err := json.Unmarshal([]byte(o), &u); err != nil {
+				// todo report on object
+				fmt.Println(err)
+				continue
+			}
+			metas = append(metas, discoveryv1alpha1.Metadata{
+				Unstructured: unstructured.Unstructured{Object: u},
+			})
+		}
+	}
 	return
 }
 

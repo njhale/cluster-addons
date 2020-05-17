@@ -122,6 +122,7 @@ func (r *AddonReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	}
 
+	log.Info("stuff", "addon", addon.Addon)
 	if err := r.Update(ctx, addon.Addon); err != nil {
 		log.Error(err, "Could not update Addon status")
 		return ctrl.Result{}, err

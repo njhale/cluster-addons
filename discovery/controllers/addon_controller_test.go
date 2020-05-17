@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	discoveryv1alpha1 "sigs.k8s.io/addon-operators/discovery/api/v1alpha1"
 	"sigs.k8s.io/addon-operators/discovery/controllers/decorators"
 	"sigs.k8s.io/addon-operators/discovery/lib/testobj"
@@ -71,15 +72,22 @@ var _ = Describe("Addon Reconciler", func() {
 
 		Context("with components bearing its label", func() {
 			var (
-				objs         []runtime.Object
-				expectedRefs []discoveryv1alpha1.RichReference
-				namespace    string
+				objs          []runtime.Object
+				expectedRefs  []discoveryv1alpha1.RichReference
+				expectedMetas []discoveryv1alpha1.Metadata
+				namespace     string
 			)
 
 			BeforeEach(func() {
 				namespace = genName("ns-")
 				objs = testobj.WithLabel(expectedKey, "",
-					testobj.WithName(namespace, &corev1.Namespace{}),
+					testobj.WithName(namespace, &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								decorators.ComponentLabelKeyPrefix + "my.friendly.id": `{"namespace": "metadata.name"}`,
+							},
+						},
+					}),
 				)
 
 				for _, obj := range objs {
@@ -87,6 +95,11 @@ var _ = Describe("Addon Reconciler", func() {
 				}
 
 				expectedRefs = toRefs(scheme, objs...)
+				expectedMetas = []discoveryv1alpha1.Metadata{
+					{
+						Unstructured: unstructured.Unstructured{Object: map[string]interface{}{"kind": "my.friendly.id", "namespace": namespace}},
+					},
+				}
 			})
 
 			AfterEach(func() {
@@ -101,6 +114,13 @@ var _ = Describe("Addon Reconciler", func() {
 					err := k8sClient.Get(ctx, name, addon)
 					return addon.Status.Components.Refs, err
 				}, timeout, interval).Should(ConsistOf(expectedRefs))
+			})
+
+			Specify("a status containing its extracted metadata", func() {
+				Eventually(func() ([]discoveryv1alpha1.Metadata, error) {
+					err := k8sClient.Get(ctx, name, addon)
+					return addon.Status.Metadata, err
+				}, timeout, interval).Should(ConsistOf(expectedMetas))
 			})
 
 			Context("when new components are labelled", func() {
@@ -156,5 +176,4 @@ var _ = Describe("Addon Reconciler", func() {
 			})
 		})
 	})
-
 })

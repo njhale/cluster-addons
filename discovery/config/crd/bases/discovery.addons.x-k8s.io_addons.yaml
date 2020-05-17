@@ -165,6 +165,15 @@ spec:
               required:
               - labelSelector
               type: object
+            metadata:
+              description: Metadata extracts information about the targeted objects
+                based on labels.
+              items:
+                description: Metadata describes the content extracted from a target
+                  object.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              type: array
           type: object
       type: object
   version: v1alpha1

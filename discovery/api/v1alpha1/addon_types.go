@@ -18,6 +18,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // AddonSpec defines the desired state of Addon
@@ -25,9 +26,20 @@ type AddonSpec struct{}
 
 // AddonStatus describes the observed state of an addon and its components.
 type AddonStatus struct {
+	// Metadata extracts information about the targeted objects based on labels.
+	// +optional
+	Metadata []Metadata `json:"metadata,omitempty"`
+
 	// Components describes resources that compose the addon.
 	// +optional
 	Components *Components `json:"components,omitempty"`
+}
+
+// Metadata describes the content extracted from a target object.
+type Metadata struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// Content is the information that has been extracted from the targeted object.
+	unstructured.Unstructured `json:",inline"`
 }
 
 // ConditionType codifies a condition's type.
@@ -65,6 +77,7 @@ type Components struct {
 // RichReference is a reference to a resource, enriched with its status conditions.
 type RichReference struct {
 	*corev1.ObjectReference `json:",inline"`
+
 	// Conditions represents the latest state of the object.
 	// +optional
 	// +patchMergeKey=type

@@ -8,6 +8,8 @@ require (
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
 	github.com/stretchr/testify v1.4.0
+	github.com/tidwall/gjson v1.5.0
+	github.com/tidwall/sjson v1.0.4
 	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0
 	k8s.io/api v0.0.0-20191121015604-11707872ac1c
 	k8s.io/apimachinery v0.0.0-20191121015412-41065c7a8c2a

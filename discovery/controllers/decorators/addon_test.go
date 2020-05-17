@@ -147,6 +147,7 @@ func TestAddComponents(t *testing.T) {
 				addon: func() *discoveryv1alpha1.Addon {
 					addon := &discoveryv1alpha1.Addon{}
 					addon.SetName("puffin")
+					addon.Status.Metadata = []discoveryv1alpha1.Metadata{}
 					addon.Status.Components = &discoveryv1alpha1.Components{
 						LabelSelector: &metav1.LabelSelector{
 							MatchExpressions: []metav1.LabelSelectorRequirement{
