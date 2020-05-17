@@ -16,9 +16,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/json"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // AddonSpec defines the desired state of Addon
@@ -37,14 +37,9 @@ type AddonStatus struct {
 
 // Metadata describes the content extracted from a target object.
 type Metadata struct {
-	// Type is a reverse-dns identifier for the type of information extracted.
-	Type string `json:"type"`
-
-	// Ref is a short reference to the object from which this data was extracted.
-	Ref string `json:"ref"`
-
+	// +kubebuilder:pruning:PreserveUnknownFields
 	// Content is the information that has been extracted from the targeted object.
-	Content json.RawMessage `json:"content"`
+	unstructured.Unstructured `json:",inline"`
 }
 
 // ConditionType codifies a condition's type.
@@ -82,6 +77,7 @@ type Components struct {
 // RichReference is a reference to a resource, enriched with its status conditions.
 type RichReference struct {
 	*corev1.ObjectReference `json:",inline"`
+
 	// Conditions represents the latest state of the object.
 	// +optional
 	// +patchMergeKey=type

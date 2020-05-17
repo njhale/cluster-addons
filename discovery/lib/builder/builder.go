@@ -7,12 +7,12 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-func BuildObject(template string, in string) (out []string, err error) {
+func BuildObject(kind string, template string, in string) (out []string, err error) {
 	if !gjson.Valid(in) {
 		err = fmt.Errorf("not valid json")
 		return
 	}
-	out = []string{""}
+	out = []string{fmt.Sprintf(`{"kind": "%s"}`, kind)}
 	parsed := gjson.Get(template, "@this")
 	parsed.ForEach(func(key, value gjson.Result) bool {
 		inline := false

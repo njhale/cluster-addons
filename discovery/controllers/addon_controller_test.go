@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -13,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	discoveryv1alpha1 "sigs.k8s.io/addon-operators/discovery/api/v1alpha1"
 	"sigs.k8s.io/addon-operators/discovery/controllers/decorators"
 	"sigs.k8s.io/addon-operators/discovery/lib/testobj"
@@ -83,9 +82,11 @@ var _ = Describe("Addon Reconciler", func() {
 				namespace = genName("ns-")
 				objs = testobj.WithLabel(expectedKey, "",
 					testobj.WithName(namespace, &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-							decorators.ComponentLabelKeyPrefix + "my.friendly.id": `{"namespace": "metadata.name"}`,
-						}},
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								decorators.ComponentLabelKeyPrefix + "my.friendly.id": `{"namespace": "metadata.name"}`,
+							},
+						},
 					}),
 				)
 
@@ -96,9 +97,7 @@ var _ = Describe("Addon Reconciler", func() {
 				expectedRefs = toRefs(scheme, objs...)
 				expectedMetas = []discoveryv1alpha1.Metadata{
 					{
-						Type:    "my.friendly.id",
-						Ref:     "test",
-						Content: json.RawMessage(fmt.Sprintf(`{"namespace":"%s"}`, namespace)),
+						Unstructured: unstructured.Unstructured{Object: map[string]interface{}{"kind": "my.friendly.id", "namespace": namespace}},
 					},
 				}
 			})
@@ -177,5 +176,4 @@ var _ = Describe("Addon Reconciler", func() {
 			})
 		})
 	})
-
 })

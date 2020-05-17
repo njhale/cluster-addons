@@ -171,25 +171,8 @@ spec:
               items:
                 description: Metadata describes the content extracted from a target
                   object.
-                properties:
-                  content:
-                    description: Content is the information that has been extracted
-                      from the targeted object.
-                    format: byte
-                    type: string
-                  ref:
-                    description: Ref is a short reference to the object from which
-                      this data was extracted.
-                    type: string
-                  type:
-                    description: Type is a reverse-dns identifier for the type of
-                      information extracted.
-                    type: string
-                required:
-                - content
-                - ref
-                - type
                 type: object
+                x-kubernetes-preserve-unknown-fields: true
               type: array
           type: object
       type: object

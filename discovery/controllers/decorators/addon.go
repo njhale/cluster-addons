@@ -1,6 +1,7 @@
 package decorators
 
 import (
+	"encoding/json"
 	"fmt"
 	"sigs.k8s.io/addon-operators/discovery/lib/builder"
 	"strings"
@@ -139,6 +140,7 @@ func (a *Addon) ResetComponents() error {
 	a.Status.Components = &discoveryv1alpha1.Components{
 		LabelSelector: labelSelector,
 	}
+	a.Status.Metadata = make([]discoveryv1alpha1.Metadata, 0)
 
 	return nil
 }
@@ -180,7 +182,7 @@ func (a *Addon) AddComponents(components ...runtime.Object) error {
 		}
 		refs = append(refs, *ref)
 
-		ms, err := component.ExtractMetadata()
+		ms, err := component.ExtractMetadata(ref)
 		if err != nil {
 			return err
 		}
@@ -276,7 +278,7 @@ func (c *Component) Reference() (ref *discoveryv1alpha1.RichReference, err error
 	return
 }
 
-func (c *Component) ExtractMetadata() (metas []discoveryv1alpha1.Metadata, err error) {
+func (c *Component) ExtractMetadata(ref *discoveryv1alpha1.RichReference) (metas []discoveryv1alpha1.Metadata, err error) {
 	m, err := meta.Accessor(c)
 	if err != nil {
 		return
@@ -296,9 +298,8 @@ func (c *Component) ExtractMetadata() (metas []discoveryv1alpha1.Metadata, err e
 			continue
 		}
 
-		// todo: aggregate, ignore failures
 		// todo: don't convert to string, use gjson byte interface
-		objs, oerr := builder.BuildObject(v, string(marshalled))
+		objs, oerr := builder.BuildObject(strings.TrimPrefix(k, ComponentLabelKeyPrefix), v, string(marshalled))
 		if oerr != nil {
 			err = oerr
 			return
@@ -307,10 +308,14 @@ func (c *Component) ExtractMetadata() (metas []discoveryv1alpha1.Metadata, err e
 			if o == "" {
 				continue
 			}
+			var u map[string]interface{}
+			if err := json.Unmarshal([]byte(o), &u); err != nil {
+				// todo report on object
+				fmt.Println(err)
+				continue
+			}
 			metas = append(metas, discoveryv1alpha1.Metadata{
-				Type:    strings.TrimPrefix(k, ComponentLabelKeyPrefix),
-				Ref:     m.GetSelfLink(),
-				Content: []byte(o),
+				Unstructured: unstructured.Unstructured{Object: u},
 			})
 		}
 	}
